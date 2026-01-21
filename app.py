@@ -11,18 +11,27 @@ Key Concepts Covered:
 3. OAuth2 password bearer flow
 4. Protected routes with dependencies
 5. User authentication
+6. SQLite database integration
+7. Environment variable configuration
 
 Author: FastAPI OAuth2 Tutorial
 """
 
 # Standard library imports
+import os
 from datetime import datetime, timedelta
 
 # Third-party imports
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from dotenv import load_dotenv
+
+# Local imports
+from database import get_database
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 # ==============================================================================
@@ -30,36 +39,38 @@ from passlib.context import CryptContext
 # ==============================================================================
 
 app = FastAPI(
-    title="OAuth2 Tutorial API",
-    description="Learn OAuth2 authentication with FastAPI",
-    version="1.0.0",
+    title=os.getenv("APP_NAME", "OAuth2 Tutorial API"),
+    description="Learn OAuth2 authentication with FastAPI - Now with SQLite database!",
+    version=os.getenv("APP_VERSION", "1.0.0"),
 )
 
 
 # ==============================================================================
-# CONFIGURATION
+# CONFIGURATION (Loaded from .env file)
 # ==============================================================================
 
 # SECRET_KEY: Used to encode/decode JWT tokens
-# In production, use a strong random key and store it in environment variables!
-# Generate one with: openssl rand -hex 32
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+# IMPORTANT: In production, always use environment variables for sensitive data!
+# Generate a secure key with: openssl rand -hex 32
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # ALGORITHM: The algorithm used to sign the JWT
-ALGORITHM = "HS256"
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 # ACCESS_TOKEN_EXPIRE_MINUTES: How long the token is valid
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+# DATABASE_URL: Path to SQLite database
+DATABASE_URL = os.getenv("DATABASE_URL", "./users.db")
 
 
 # ==============================================================================
-# PASSWORD HASHING SETUP
+# DATABASE INSTANCE
 # ==============================================================================
 
-# CryptContext: Handles password hashing using bcrypt
-# bcrypt is a slow hashing algorithm designed to be computationally expensive
-# This makes it resistant to brute-force attacks
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Get database instance (singleton pattern)
+# This connects to our SQLite database and provides all user operations
+db = get_database(DATABASE_URL)
 
 
 # ==============================================================================
@@ -76,101 +87,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 # ==============================================================================
-# DATABASE (In-Memory)
-# ==============================================================================
-
-# In a real application, this would be a proper database (PostgreSQL, MySQL, etc.)
-# For this tutorial, we use a simple dictionary
-# Note: Passwords are pre-hashed using bcrypt
-fake_users_db = {
-    "john": {
-        "username": "john",
-        "full_name": "John Doe",
-        "email": "john@example.com",
-        "hashed_password": pwd_context.hash("secret"),  # Password: secret
-        "disabled": False,
-    },
-    "jane": {
-        "username": "jane",
-        "full_name": "Jane Doe",
-        "email": "jane@example.com",
-        "hashed_password": pwd_context.hash("secret"),  # Password: secret
-        "disabled": False,
-    },
-}
-
-
-# ==============================================================================
 # UTILITY FUNCTIONS
 # ==============================================================================
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verify a plain password against a hashed password.
-    
-    Args:
-        plain_password: The password provided by the user
-        hashed_password: The hashed password from the database
-    
-    Returns:
-        True if the password matches, False otherwise
-    
-    Example:
-        >>> hashed = pwd_context.hash("mypassword")
-        >>> verify_password("mypassword", hashed)
-        True
-        >>> verify_password("wrongpassword", hashed)
-        False
-    """
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_user(db: dict, username: str) -> dict:
-    """
-    Retrieve a user from the database by username.
-    
-    Args:
-        db: The user database (dictionary)
-        username: The username to look up
-    
-    Returns:
-        User dictionary if found, None otherwise
-    
-    Example:
-        >>> user = get_user(fake_users_db, "john")
-        >>> print(user["full_name"])
-        'John Doe'
-    """
-    return db.get(username)
-
-
-def authenticate_user(username: str, password: str) -> dict:
-    """
-    Authenticate a user by verifying their username and password.
-    
-    This function:
-    1. Looks up the user in the database
-    2. Verifies the provided password against the stored hash
-    3. Returns the user data if authentication succeeds
-    
-    Args:
-        username: The username to authenticate
-        password: The plain text password
-    
-    Returns:
-        User dictionary if authentication succeeds, False otherwise
-    
-    Example:
-        >>> user = authenticate_user("john", "secret")
-        >>> if user:
-        ...     print(f"Welcome {user['full_name']}!")
-    """
-    user = get_user(fake_users_db, username)
-    if not user:
-        return False
-    if not verify_password(password, user["hashed_password"]):
-        return False
-    return user
 
 
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
@@ -269,7 +187,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         raise credentials_exception
     
     # Look up the user in the database
-    user = get_user(fake_users_db, username)
+    user = db.get_user(username)
     
     if user is None:
         raise credentials_exception
@@ -338,7 +256,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         }
     """
     # Authenticate the user
-    user = authenticate_user(form_data.username, form_data.password)
+    user = db.authenticate_user(form_data.username, form_data.password)
     
     if not user:
         # Authentication failed

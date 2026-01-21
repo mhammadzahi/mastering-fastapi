@@ -83,6 +83,31 @@ This installs:
 - **python-jose**: JWT token creation/validation
 - **passlib**: Password hashing
 - **python-multipart**: Form data handling
+- **python-dotenv**: Environment variable management
+
+### Step 3: Setup Environment Variables
+
+```bash
+# Copy the example .env file
+cp .env.example .env
+
+# Edit .env and customize your settings (optional)
+# The defaults work fine for learning
+nano .env  # or use your favorite editor
+```
+
+**Important**: Never commit `.env` to version control! It contains secrets.
+
+### Step 4: Initialize the Database
+
+```bash
+# Create the SQLite database and add sample users
+python init_db.py
+```
+
+This creates:
+- `users.db` - SQLite database file
+- Sample users: john, jane, admin (password: see output)
 
 ---
 
@@ -91,7 +116,13 @@ This installs:
 ```
 mastering-fastapi/
 ├── app.py              # Main application (fully implemented)
+├── database.py         # SQLite database operations
+├── init_db.py          # Database initialization script
 ├── requirements.txt    # Python dependencies
+├── .env                # Environment variables (SECRET_KEY, etc.)
+├── .env.example        # Example environment file
+├── .gitignore          # Git ignore rules
+├── users.db            # SQLite database (created by init_db.py)
 ├── README.md          # This tutorial
 ├── API_EXAMPLES.md    # API usage examples
 ├── tutorial/          # Step-by-step learning files
@@ -106,7 +137,38 @@ mastering-fastapi/
 
 ## 🧠 Understanding the Code
 
-### 1. Password Hashing
+### 1. Environment Variables (.env file)
+
+**Why?** Store sensitive configuration like SECRET_KEY outside your code!
+
+```bash
+# .env file
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=./users.db
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+In Python:
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # Load .env file
+SECRET_KEY = os.getenv("SECRET_KEY")
+```
+
+### 2. SQLite Database
+
+**Why?** Store users persistently, not just in memory!
+
+```python
+from database import get_database
+
+db = get_database()  # Connect to SQLite
+user = db.get_user("john")  # Query the database
+```
+
+### 3. Password Hashing
 
 **Why?** Never store passwords in plain text! If your database is compromised, hashed passwords are useless to attackers.
 
@@ -116,7 +178,7 @@ hashed = pwd_context.hash("secret")  # Create hash
 verified = pwd_context.verify("secret", hashed)  # Verify password
 ```
 
-### 2. JWT Tokens (JSON Web Tokens)
+### 4. JWT Tokens (JSON Web Tokens)
 
 **What?** JWTs are encoded JSON objects that contain claims (user data) and are digitally signed.
 
@@ -134,7 +196,7 @@ token = jwt.encode(
 payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
 ```
 
-### 3. OAuth2 Password Bearer
+### 5. OAuth2 Password Bearer
 
 **What?** A scheme where the client sends credentials once, receives a token, then uses that token for subsequent requests.
 
@@ -143,7 +205,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 # This tells FastAPI where to get the token (/token endpoint)
 ```
 
-### 4. Protected Routes
+### 6. Protected Routes
 
 Use `Depends()` to require authentication:
 
@@ -264,9 +326,15 @@ source env/bin/activate  # or env\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
+### Issue: "Database not found"
+**Solution**: Initialize the database:
+```bash
+python init_db.py
+```
+
 ### Issue: "401 Unauthorized"
 **Solution**: 
-- Check username/password (default: john/secret or jane/secret)
+- Check username/password (run `python init_db.py` to see credentials)
 - Ensure token is prefixed with "Bearer " in Authorization header
 - Verify token hasn't expired (default: 30 minutes)
 
@@ -286,21 +354,36 @@ pip install -r requirements.txt
 Now that you understand OAuth2 basics, here are ways to improve:
 
 ### Security Enhancements:
-1. **Use Environment Variables**: Don't hardcode SECRET_KEY
+1. **Use Strong SECRET_KEY**: Generate with `openssl rand -hex 32`
    ```python
-   import os
-   SECRET_KEY = os.getenv("SECRET_KEY", "fallback-key")
+   # Already done! Check your .env file
+   SECRET_KEY=09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
    ```
 
-2. **Refresh Tokens**: Add long-lived refresh tokens alongside access tokens
+2. **Never Commit .env**: Already in .gitignore!
 
-3. **Token Blacklisting**: Implement logout by blacklisting tokens
+2. **Never Commit .env**: Already in .gitignore!
 
-4. **Rate Limiting**: Prevent brute force attacks on login
+3. **Refresh Tokens**: Add long-lived refresh tokens alongside access tokens
 
-5. **HTTPS Only**: Never use OAuth2 without HTTPS in production
+4. **Token Blacklisting**: Implement logout by blacklisting tokens
 
-### Database Integration:
+5. **Rate Limiting**: Prevent brute force attacks on login
+
+6. **HTTPS Only**: Never use OAuth2 without HTTPS in production
+
+### Database Improvements:
+1. **Migrate to PostgreSQL**: For production use
+   ```bash
+   # Update DATABASE_URL in .env
+   DATABASE_URL=postgresql://user:pass@localhost/dbname
+   ```
+
+2. **Add Migrations**: Use Alembic for database schema changes
+
+3. **Connection Pooling**: For better performance
+
+### User Management:
 1. Replace `fake_users_db` with a real database (PostgreSQL, MySQL)
 2. Use SQLAlchemy ORM for database operations
 3. Add user registration endpoint
@@ -350,6 +433,8 @@ This tutorial is provided as-is for educational purposes.
 
 You've learned:
 - ✅ What OAuth2 is and why it's important
+- ✅ How to use environment variables for configuration
+- ✅ How to use SQLite database for persistent storage
 - ✅ How to hash passwords securely
 - ✅ How to create and validate JWT tokens
 - ✅ How to implement OAuth2 password flow in FastAPI

@@ -6,6 +6,15 @@ __pycache__/
 # C extensions
 *.so
 
+# Environment variables
+.env
+
+# SQLite database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
 # Distribution / packaging
 .Python
 build/
