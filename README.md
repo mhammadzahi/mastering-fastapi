@@ -1,444 +1,375 @@
-# 🔐 Mastering FastAPI OAuth2 - Complete Beginner's Guide
+# FastAPI Product & Customer Management API
 
-Welcome to the complete OAuth2 tutorial using FastAPI! This project will teach you how to implement secure authentication and authorization in your APIs step by step.
+A comprehensive FastAPI application demonstrating RESTful API development with PostgreSQL, SQLAlchemy, Pydantic validation, and custom middleware.
 
-## 📚 Table of Contents
+## 📋 Features
 
-1. [What is OAuth2?](#what-is-oauth2)
-2. [Prerequisites](#prerequisites)
-3. [Installation](#installation)
-4. [Project Structure](#project-structure)
-5. [Understanding the Code](#understanding-the-code)
-6. [Running the Application](#running-the-application)
-7. [Testing the API](#testing-the-api)
-8. [Step-by-Step Tutorial](#step-by-step-tutorial)
-9. [Common Issues](#common-issues)
-10. [Next Steps](#next-steps)
+- **RESTful API Endpoints**: Full CRUD operations (GET, POST, PUT, DELETE)
+- **PostgreSQL Integration**: Using SQLAlchemy ORM
+- **Data Validation**: Pydantic models for request/response validation
+- **Custom Middleware**: Logging, CORS, and Authentication placeholder
+- **Relationships**: Demonstrates JOIN operations between tables
+- **Advanced Filtering**: Search, pagination, and multi-criteria filtering
+- **Transaction Management**: Complex operations with rollback support
+- **API Documentation**: Auto-generated with Swagger UI and ReDoc
 
----
-
-## 🤔 What is OAuth2?
-
-**OAuth2** is an authorization framework that allows applications to obtain limited access to user accounts. Think of it like a valet key for your car - it gives limited access without handing over your master key.
-
-### Key Concepts:
-
-- **Authentication**: Verifying who you are (like showing your ID)
-- **Authorization**: Verifying what you can access (like checking your permissions)
-- **Access Token**: A temporary key that grants access to protected resources
-- **Bearer Token**: A type of access token that anyone holding it can use (like a concert ticket)
-
-### OAuth2 Flow in This Tutorial:
-
-```
-1. User sends username + password → /token endpoint
-2. Server verifies credentials
-3. Server creates JWT (JSON Web Token)
-4. Server returns token to user
-5. User includes token in subsequent requests
-6. Server validates token and grants access
-```
-
----
-
-## 📋 Prerequisites
-
-Before starting, you should have:
-
-- **Python 3.8+** installed
-- Basic understanding of:
-  - Python programming
-  - HTTP requests (GET, POST)
-  - APIs and REST concepts
-  - Command line/terminal basics
-
----
-
-## 🚀 Installation
-
-### Step 1: Create a Virtual Environment
-
-A virtual environment keeps your project dependencies isolated.
-
-```bash
-# Create virtual environment
-python -m venv env
-
-# Activate it
-# On Linux/Mac:
-source env/bin/activate
-# On Windows:
-env\Scripts\activate
-```
-
-### Step 2: Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-This installs:
-- **fastapi**: The web framework
-- **uvicorn**: ASGI server to run the app
-- **python-jose**: JWT token creation/validation
-- **passlib**: Password hashing
-- **python-multipart**: Form data handling
-- **python-dotenv**: Environment variable management
-
-### Step 3: Setup Environment Variables
-
-```bash
-# Copy the example .env file
-cp .env.example .env
-
-# Edit .env and customize your settings (optional)
-# The defaults work fine for learning
-nano .env  # or use your favorite editor
-```
-
-**Important**: Never commit `.env` to version control! It contains secrets.
-
-### Step 4: Initialize the Database
-
-```bash
-# Create the SQLite database and add sample users
-python init_db.py
-```
-
-This creates:
-- `users.db` - SQLite database file
-- Sample users: john, jane, admin (password: see output)
-
----
-
-## 📁 Project Structure
+## 🏗️ Project Structure
 
 ```
 mastering-fastapi/
-├── app.py              # Main application (fully implemented)
-├── database.py         # SQLite database operations
-├── init_db.py          # Database initialization script
-├── requirements.txt    # Python dependencies
-├── .env                # Environment variables (SECRET_KEY, etc.)
-├── .env.example        # Example environment file
-├── .gitignore          # Git ignore rules
-├── users.db            # SQLite database (created by init_db.py)
-├── README.md          # This tutorial
-├── API_EXAMPLES.md    # API usage examples
-├── tutorial/          # Step-by-step learning files
-│   ├── step1_basic.py
-│   ├── step2_password_hashing.py
-│   ├── step3_jwt_tokens.py
-│   └── step4_complete.py
-└── env/               # Virtual environment (created by you)
+├── app/
+│   ├── __init__.py
+│   ├── database.py              # Database configuration
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── models.py            # SQLAlchemy models
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   └── schemas.py           # Pydantic schemas
+│   ├── crud/
+│   │   ├── __init__.py
+│   │   ├── customer.py          # Customer CRUD operations
+│   │   ├── product.py           # Product CRUD operations
+│   │   └── order.py             # Order CRUD operations
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── customers.py         # Customer endpoints
+│   │   ├── products.py          # Product endpoints
+│   │   └── orders.py            # Order endpoints
+│   └── middleware/
+│       ├── __init__.py
+│       ├── logging.py           # Logging middleware
+│       └── auth.py              # Authentication middleware
+├── main.py                      # FastAPI application entry point
+├── requirements.txt             # Python dependencies
+├── .env.example                 # Environment variables template
+└── README.md                    # This file
 ```
 
----
+## 🚀 Getting Started
 
-## 🧠 Understanding the Code
+### Prerequisites
 
-### 1. Environment Variables (.env file)
+- Python 3.11+
+- PostgreSQL 12+
+- Virtual environment (recommended)
 
-**Why?** Store sensitive configuration like SECRET_KEY outside your code!
+### 1. Setup PostgreSQL Database
+
+```sql
+-- Connect to PostgreSQL
+psql -U postgres
+
+-- Create database
+CREATE DATABASE fastapi_db;
+
+-- Create user (optional)
+CREATE USER fastapi_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE fastapi_db TO fastapi_user;
+```
+
+### 2. Install Dependencies
 
 ```bash
-# .env file
-SECRET_KEY=your-secret-key-here
-DATABASE_URL=./users.db
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+# Activate virtual environment
+source env/bin/activate  # On Linux/Mac
+# or
+env\Scripts\activate     # On Windows
+
+# Install required packages
+pip install psycopg2-binary email-validator
 ```
 
-In Python:
-```python
-from dotenv import load_dotenv
-import os
+### 3. Configure Database Connection
 
-load_dotenv()  # Load .env file
-SECRET_KEY = os.getenv("SECRET_KEY")
-```
-
-### 2. SQLite Database
-
-**Why?** Store users persistently, not just in memory!
+Update the database URL in `app/database.py`:
 
 ```python
-from database import get_database
-
-db = get_database()  # Connect to SQLite
-user = db.get_user("john")  # Query the database
+DATABASE_URL = "postgresql://username:password@localhost:5432/fastapi_db"
 ```
 
-### 3. Password Hashing
+Or create a `.env` file:
 
-**Why?** Never store passwords in plain text! If your database is compromised, hashed passwords are useless to attackers.
-
-```python
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-hashed = pwd_context.hash("secret")  # Create hash
-verified = pwd_context.verify("secret", hashed)  # Verify password
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/fastapi_db
 ```
 
-### 4. JWT Tokens (JSON Web Tokens)
-
-**What?** JWTs are encoded JSON objects that contain claims (user data) and are digitally signed.
-
-**Structure**: `header.payload.signature`
-
-```python
-# Creating a token
-token = jwt.encode(
-    {"sub": "username", "exp": expiration_time},
-    SECRET_KEY,
-    algorithm="HS256"
-)
-
-# Decoding a token
-payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-```
-
-### 5. OAuth2 Password Bearer
-
-**What?** A scheme where the client sends credentials once, receives a token, then uses that token for subsequent requests.
-
-```python
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-# This tells FastAPI where to get the token (/token endpoint)
-```
-
-### 6. Protected Routes
-
-Use `Depends()` to require authentication:
-
-```python
-@app.get("/users/me")
-async def read_users_me(current_user: dict = Depends(get_current_user)):
-    return current_user
-```
-
----
-
-## 🏃 Running the Application
-
-### Start the Server
+### 4. Run the Application
 
 ```bash
-uvicorn app:app --reload
+# Using Python
+python main.py
+
+# Or using Uvicorn directly
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Flags explained:**
-- `app:app` - module:instance (file "app.py", FastAPI instance "app")
-- `--reload` - Auto-restart when code changes (development only)
+The API will be available at:
+- **API**: http://localhost:8000
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-You should see:
+## 📊 Database Schema
+
+### Tables
+
+1. **customers**: Customer information
+2. **products**: Product catalog
+3. **orders**: Customer orders
+4. **order_items**: Order details (many-to-many relationship)
+
+### Relationships
+
 ```
-INFO:     Uvicorn running on http://127.0.0.1:8000
-INFO:     Application startup complete.
+customers (1) ──< (N) orders (1) ──< (N) order_items >── (N) products
 ```
 
-### Access the Interactive Docs
+## 🔌 API Endpoints
 
-Open your browser and visit:
+### Customers
 
-- **Swagger UI**: http://127.0.0.1:8000/docs
-- **ReDoc**: http://127.0.0.1:8000/redoc
+- `GET /api/customers/` - List all customers (with pagination and search)
+- `GET /api/customers/{id}` - Get customer by ID
+- `POST /api/customers/` - Create new customer
+- `PUT /api/customers/{id}` - Update customer
+- `DELETE /api/customers/{id}` - Delete customer
 
-The Swagger UI provides an interactive interface to test all endpoints!
+### Products
 
----
+- `GET /api/products/` - List all products (with filtering)
+- `GET /api/products/{id}` - Get product by ID
+- `POST /api/products/` - Create new product
+- `PUT /api/products/{id}` - Update product
+- `DELETE /api/products/{id}` - Delete product
+
+### Orders
+
+- `GET /api/orders/` - List all orders (with filtering)
+- `GET /api/orders/{id}` - Get order by ID
+- `GET /api/orders/customer/{customer_id}` - Get customer's orders
+- `POST /api/orders/` - Create new order
+- `PUT /api/orders/{id}` - Update order status
+- `DELETE /api/orders/{id}` - Delete order
+
+## 📝 SQL Query Examples
+
+### Basic Queries
+
+```sql
+-- SELECT: Get all customers
+SELECT * FROM customers;
+
+-- SELECT with WHERE: Find customer by email
+SELECT * FROM customers WHERE email = 'john@example.com';
+
+-- INSERT: Add new customer
+INSERT INTO customers (name, email, phone, address)
+VALUES ('John Doe', 'john@example.com', '1234567890', '123 Main St');
+
+-- UPDATE: Update customer information
+UPDATE customers
+SET phone = '0987654321', address = '456 Oak Ave'
+WHERE id = 1;
+
+-- DELETE: Remove customer
+DELETE FROM customers WHERE id = 1;
+```
+
+### Advanced Queries
+
+```sql
+-- JOIN: Get orders with customer information
+SELECT o.id, o.total_amount, c.name, c.email
+FROM orders o
+JOIN customers c ON o.customer_id = c.id;
+
+-- Complex JOIN: Get order details with product information
+SELECT 
+    o.id AS order_id,
+    c.name AS customer_name,
+    p.name AS product_name,
+    oi.quantity,
+    oi.price_at_time,
+    (oi.quantity * oi.price_at_time) AS line_total
+FROM orders o
+JOIN customers c ON o.customer_id = c.id
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id
+ORDER BY o.id;
+
+-- Aggregation: Get total sales per customer
+SELECT 
+    c.name,
+    COUNT(o.id) AS total_orders,
+    SUM(o.total_amount) AS total_spent
+FROM customers c
+LEFT JOIN orders o ON c.id = o.customer_id
+GROUP BY c.id, c.name
+ORDER BY total_spent DESC;
+
+-- Subquery: Find products that have never been ordered
+SELECT * FROM products
+WHERE id NOT IN (
+    SELECT DISTINCT product_id FROM order_items
+);
+
+-- Filter products by stock and price
+SELECT * FROM products
+WHERE stock > 0 AND price BETWEEN 10 AND 100
+ORDER BY price ASC;
+```
 
 ## 🧪 Testing the API
 
-### Method 1: Using Swagger UI (Easiest)
+### Using cURL
 
-1. Go to http://127.0.0.1:8000/docs
-2. Click on `/token` endpoint
-3. Click "Try it out"
-4. Enter credentials:
-   - **username**: `john`
-   - **password**: `secret`
-5. Click "Execute"
-6. Copy the `access_token` from the response
-7. Click the "Authorize" button at the top
-8. Paste the token and click "Authorize"
-9. Now try the `/users/me` endpoint!
+```bash
+# Create a customer
+curl -X POST "http://localhost:8000/api/customers/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "1234567890",
+    "address": "123 Main St"
+  }'
 
-### Method 2: Using curl (Command Line)
+# Get all customers
+curl "http://localhost:8000/api/customers/"
 
-See [API_EXAMPLES.md](API_EXAMPLES.md) for detailed curl commands.
+# Create a product
+curl -X POST "http://localhost:8000/api/products/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Laptop",
+    "description": "High-performance laptop",
+    "price": 999.99,
+    "stock": 10,
+    "category": "Electronics"
+  }'
 
-### Method 3: Using Python Requests
+# Create an order
+curl -X POST "http://localhost:8000/api/orders/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customer_id": 1,
+    "items": [
+      {"product_id": 1, "quantity": 2}
+    ]
+  }'
+```
+
+### Using Python Requests
 
 ```python
 import requests
 
-# Step 1: Get token
-response = requests.post(
-    "http://127.0.0.1:8000/token",
-    data={"username": "john", "password": "secret"}
-)
-token = response.json()["access_token"]
+BASE_URL = "http://localhost:8000/api"
 
-# Step 2: Use token
-response = requests.get(
-    "http://127.0.0.1:8000/users/me",
-    headers={"Authorization": f"Bearer {token}"}
-)
-print(response.json())
+# Create customer
+customer_data = {
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "phone": "9876543210"
+}
+response = requests.post(f"{BASE_URL}/customers/", json=customer_data)
+customer = response.json()
+print(f"Created customer: {customer}")
+
+# Get all products
+response = requests.get(f"{BASE_URL}/products/")
+products = response.json()
+print(f"Total products: {len(products)}")
+
+# Update product
+update_data = {"stock": 15}
+response = requests.put(f"{BASE_URL}/products/1", json=update_data)
+print(f"Updated product: {response.json()}")
 ```
 
----
+## 🔐 Middleware
 
-## 📖 Step-by-Step Tutorial
+### Logging Middleware
+Logs all incoming requests with:
+- HTTP method and path
+- Client IP address
+- Response status code
+- Processing time
 
-Learn OAuth2 progressively by following the tutorial files in order:
+### CORS Middleware
+Configured to allow:
+- All origins (configure for production)
+- All HTTP methods
+- All headers
 
-### Step 1: Basic API (`tutorial/step1_basic.py`)
-- Create a simple FastAPI app
-- Add a public endpoint
-- Understand the basics
+### Authentication Middleware (Placeholder)
+- Checks for `X-API-Key` header
+- Public paths bypass authentication
+- Ready for JWT implementation
 
-### Step 2: Password Hashing (`tutorial/step2_password_hashing.py`)
-- Add user database
-- Implement password hashing with bcrypt
-- Create authentication function
+## 📦 Dependencies
 
-### Step 3: JWT Tokens (`tutorial/step3_jwt_tokens.py`)
-- Generate JWT access tokens
-- Create login endpoint
-- Return tokens to users
-
-### Step 4: Complete OAuth2 (`tutorial/step4_complete.py`)
-- Add OAuth2 password bearer scheme
-- Create protected endpoints
-- Implement token validation
-- Full working example
-
-Each file builds on the previous one and includes detailed comments explaining every concept.
-
----
-
-## ❓ Common Issues
-
-### Issue: "ModuleNotFoundError"
-**Solution**: Make sure your virtual environment is activated and dependencies are installed:
-```bash
-source env/bin/activate  # or env\Scripts\activate on Windows
-pip install -r requirements.txt
+```
+fastapi>=0.109.0
+uvicorn>=0.27.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+pydantic>=2.12.0
+pydantic[email]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
 ```
 
-### Issue: "Database not found"
-**Solution**: Initialize the database:
-```bash
-python init_db.py
+## 🔧 Configuration
+
+### Environment Variables
+
+Create a `.env` file:
+
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/fastapi_db
+SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-### Issue: "401 Unauthorized"
-**Solution**: 
-- Check username/password (run `python init_db.py` to see credentials)
-- Ensure token is prefixed with "Bearer " in Authorization header
-- Verify token hasn't expired (default: 30 minutes)
+## 📚 Learning Resources
 
-### Issue: "Token expired"
-**Solution**: Request a new token from `/token` endpoint
+### SQLAlchemy ORM
+- Declarative models with relationships
+- Query building and filtering
+- Transaction management
+- Connection pooling
 
-### Issue: "Invalid credentials"
-**Solution**: 
-- Token might be malformed
-- SECRET_KEY might have changed
-- Token might be from a different server instance
+### Pydantic Validation
+- Type validation
+- Field constraints (min_length, max_length, gt, ge)
+- Email validation
+- Custom validators
 
----
+### FastAPI Features
+- Dependency injection
+- Path and query parameters
+- Request/response models
+- Automatic API documentation
+- Middleware system
 
 ## 🎯 Next Steps
 
-Now that you understand OAuth2 basics, here are ways to improve:
-
-### Security Enhancements:
-1. **Use Strong SECRET_KEY**: Generate with `openssl rand -hex 32`
-   ```python
-   # Already done! Check your .env file
-   SECRET_KEY=09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
-   ```
-
-2. **Never Commit .env**: Already in .gitignore!
-
-2. **Never Commit .env**: Already in .gitignore!
-
-3. **Refresh Tokens**: Add long-lived refresh tokens alongside access tokens
-
-4. **Token Blacklisting**: Implement logout by blacklisting tokens
-
-5. **Rate Limiting**: Prevent brute force attacks on login
-
-6. **HTTPS Only**: Never use OAuth2 without HTTPS in production
-
-### Database Improvements:
-1. **Migrate to PostgreSQL**: For production use
-   ```bash
-   # Update DATABASE_URL in .env
-   DATABASE_URL=postgresql://user:pass@localhost/dbname
-   ```
-
-2. **Add Migrations**: Use Alembic for database schema changes
-
-3. **Connection Pooling**: For better performance
-
-### User Management:
-1. Replace `fake_users_db` with a real database (PostgreSQL, MySQL)
-2. Use SQLAlchemy ORM for database operations
-3. Add user registration endpoint
-
-### Advanced Features:
-1. **User Roles**: Add role-based access control (RBAC)
-2. **Scopes**: Implement OAuth2 scopes for fine-grained permissions
-3. **Multi-Factor Authentication**: Add 2FA/MFA support
-4. **OAuth2 Providers**: Allow login with Google, GitHub, etc.
-
-### Production Deployment:
-1. Use a production ASGI server (Gunicorn + Uvicorn workers)
-2. Set up environment-based configuration
-3. Add logging and monitoring
-4. Use a reverse proxy (Nginx)
-5. Deploy to cloud (AWS, GCP, Heroku, DigitalOcean)
-
----
-
-## 📚 Additional Resources
-
-### Official Documentation:
-- [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/)
-- [OAuth2 Specification](https://oauth.net/2/)
-- [JWT.io](https://jwt.io/) - Decode and verify JWTs
-
-### Recommended Reading:
-- FastAPI documentation: https://fastapi.tiangolo.com
-- OAuth2 Simplified: https://aaronparecki.com/oauth-2-simplified/
-- Password Hashing: https://passlib.readthedocs.io/
-
----
-
-## 🤝 Contributing
-
-Found an issue or want to improve this tutorial? Contributions are welcome!
-
----
+1. **Add Authentication**: Implement JWT token-based authentication
+2. **Add Tests**: Write unit and integration tests
+3. **Add Migrations**: Use Alembic for database migrations
+4. **Add Caching**: Implement Redis for caching
+5. **Add Pagination**: Implement cursor-based pagination
+6. **Add Rate Limiting**: Implement rate limiting middleware
+7. **Add Background Tasks**: Use Celery for async tasks
+8. **Deploy**: Deploy to cloud (AWS, Azure, GCP)
 
 ## 📄 License
 
-This tutorial is provided as-is for educational purposes.
+This project is for educational purposes.
 
----
+## 👤 Author
 
-## 🎓 Summary
-
-You've learned:
-- ✅ What OAuth2 is and why it's important
-- ✅ How to use environment variables for configuration
-- ✅ How to use SQLite database for persistent storage
-- ✅ How to hash passwords securely
-- ✅ How to create and validate JWT tokens
-- ✅ How to implement OAuth2 password flow in FastAPI
-- ✅ How to protect routes with authentication
-- ✅ How to test authenticated endpoints
-
-**Happy coding! 🚀**
+Created as a learning project for FastAPI and PostgreSQL integration.
