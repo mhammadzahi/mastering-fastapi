@@ -382,6 +382,7 @@ def get_database(db_path: str = "./users.db") -> Database:
     global _db_instance
     if _db_instance is None:
         _db_instance = Database(db_path)
+        
     return _db_instance
 
 

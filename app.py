@@ -23,9 +23,10 @@ from datetime import datetime, timedelta
 
 # Third-party imports
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 # Local imports
 from database import get_database
@@ -55,13 +56,13 @@ app = FastAPI(
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 # ALGORITHM: The algorithm used to sign the JWT
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ALGORITHM = os.getenv("ALGORITHM")
 
 # ACCESS_TOKEN_EXPIRE_MINUTES: How long the token is valid
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
 # DATABASE_URL: Path to SQLite database
-DATABASE_URL = os.getenv("DATABASE_URL", "./users.db")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 # ==============================================================================
@@ -84,6 +85,20 @@ db = get_database(DATABASE_URL)
 # 2. Check if it has a Bearer token
 # 3. Extract the token and pass it to your function
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+# ==============================================================================
+# REQUEST/RESPONSE MODELS
+# ==============================================================================
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 
 # ==============================================================================
@@ -221,33 +236,44 @@ async def root():
     }
 
 
-@app.post("/token")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@app.post("/token", response_model=TokenResponse)
+async def login(credentials: LoginRequest):
     """
     OAuth2 Token Endpoint - Login and get an access token.
     
     This is the endpoint where users exchange their credentials for a JWT access token.
     
+    **Note:** This endpoint accepts JSON instead of form data, which is more modern
+    and easier to work with in most applications.
+    
     Flow:
-    1. User sends username and password in a form
+    1. User sends username and password as JSON
     2. Server authenticates the credentials
     3. If valid, server creates a JWT token
     4. Server returns the token to the user
     5. User uses this token for subsequent requests
     
     Args:
-        form_data: Form containing username and password (automatically parsed by FastAPI)
+        credentials: JSON body containing username and password
     
     Returns:
-        Dictionary with access_token and token_type
+        TokenResponse with access_token and token_type
     
     Raises:
         HTTPException: If credentials are invalid (401 Unauthorized)
     
     Example Request (curl):
         curl -X POST "http://localhost:8000/token" \\
-            -H "Content-Type: application/x-www-form-urlencoded" \\
-            -d "username=john&password=secret"
+            -H "Content-Type: application/json" \\
+            -d '{"username": "john", "password": "secret"}'
+    
+    Example Request (Python):
+        import requests
+        response = requests.post(
+            "http://localhost:8000/token",
+            json={"username": "john", "password": "secret"}
+        )
+        token = response.json()["access_token"]
     
     Example Response:
         {
@@ -256,7 +282,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         }
     """
     # Authenticate the user
-    user = db.authenticate_user(form_data.username, form_data.password)
+    user = db.authenticate_user(credentials.username, credentials.password)
     
     if not user:
         # Authentication failed
@@ -268,10 +294,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["username"]},
-        expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user["username"]}, expires_delta=access_token_expires)
     
     # Return token in the format expected by OAuth2
     return {

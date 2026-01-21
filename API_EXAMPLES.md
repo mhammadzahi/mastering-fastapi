@@ -75,8 +75,8 @@ curl -X GET "http://127.0.0.1:8000/"
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=john&password=secret"
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "secret"}'
 ```
 
 **Response:**
@@ -90,9 +90,9 @@ curl -X POST "http://127.0.0.1:8000/token" \
 **Save the token:**
 ```bash
 # Extract and save token to a variable
-TOKEN=$(curl -X POST "http://127.0.0.1:8000/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=john&password=secret" \
+TOKEN=$(curl -s -X POST "http://127.0.0.1:8000/token" \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "secret"}' \
   | jq -r '.access_token')
 
 echo $TOKEN
@@ -143,8 +143,8 @@ curl -X GET "http://127.0.0.1:8000/users/me/items" \
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=john&password=wrongpassword"
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "wrongpassword"}'
 ```
 
 **Response:**
@@ -225,7 +225,7 @@ def main():
         "username": "john",
         "password": "secret"
     }
-    response = requests.post(f"{BASE_URL}/token", data=login_data)
+    response = requests.post(f"{BASE_URL}/token", json=login_data)
     print_response("Login", response)
     
     if response.status_code == 200:
@@ -250,7 +250,7 @@ def main():
         "username": "john",
         "password": "wrongpassword"
     }
-    response = requests.post(f"{BASE_URL}/token", data=wrong_login)
+    response = requests.post(f"{BASE_URL}/token", json=wrong_login)
     print_response("Wrong Credentials", response)
     
     # 6. Try accessing protected endpoint without token
@@ -355,17 +355,16 @@ Create a file `test_api.html`:
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            const formData = new URLSearchParams();
-            formData.append('username', username);
-            formData.append('password', password);
-            
             try {
                 const response = await fetch(`${BASE_URL}/token`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Content-Type': 'application/json',
                     },
-                    body: formData
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
                 });
                 
                 const data = await response.json();
@@ -466,9 +465,13 @@ app.add_middleware(
 
 - **Method**: POST
 - **URL**: `{{base_url}}/token`
-- **Body**: x-www-form-urlencoded
-  - `username`: `john`
-  - `password`: `secret`
+- **Body**: JSON (raw)
+```json
+{
+  "username": "john",
+  "password": "secret"
+}
+```
 - **Tests** (to auto-save token):
 ```javascript
 const response = pm.response.json();
